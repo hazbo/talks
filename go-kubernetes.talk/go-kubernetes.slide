@@ -1,0 +1,208 @@
+Deploying Go services to Kubernetes
+
+Harry Lawrence
+Restocks
+harry@restocks.io
+@harry4_
+
+* This talk
+
+- Go and containers
+- Why you should be using Kubernetes
+- Creating multiple Go services / applications
+- Scaling your application
+- Rolling updates
+
+* Containers
+
+- Not VMs
+- Not "lightweight" VMs
+- All config, libraries and dependencies are self-contained
+- In most cases runs a single process
+- A brief history...
+
+.caption Jails and Solaris Zones: https://www.youtube.com/watch?v=hgN8pCMLI2U
+
+* chroot
+
+[CHROOT]
+Dr. Marshall Kirk Mckusick, private communication: ‘‘According to the SCCS
+logs, the chroot call was added by Bill Joy on March 18, 1982 approximately 1.5
+years before 4.2BSD was released. That was well before we had ftp servers of
+any sort (ftp did not show up in the source tree until January 1983). My best
+guess as to its purpose was to allow Bill to chroot into the /4.2BSD build directory
+and build a system using only the files, include files, etc contained in that
+tree. That was the only use of chroot that I remember from the early days.’’
+
+.caption http://www.sane.nl/events/sane2000/papers/kamp.pdf
+.caption https://en.wikipedia.org/wiki/Chroot
+
+* Runtimes
+
+- Which runtime should I use?
+- What are the main differences?
+- Can I use more than one in my application?
+
+.image images/runtimes.png
+
+
+* Providers
+
+- Which has the best support / resources for my app?
+- What is the difference in price?
+- Why not just run my own servers?
+
+.image images/providers.png
+
+* Orchestration
+
+- Which one do I choose?
+
+.image images/management.png
+
+* John
+
+.play john1.go
+
+* Jane
+
+.play jane1.go /^func main/,/^}/
+
+* Jane
+
+.play jane2.go /^func main/,/^}/
+
+* The cluster
+
+	gcloud container clusters create myapp
+	gcloud container clusters get-credentials myapp
+
+	kubectl create -f my-resource.json
+
+* Kubernetes
+
+- Pods
+- Deployments
+- Services
+- ConfigMaps
+- Secrets
+
+* Pods
+
+A pod is one or more container. Pods can be replicated in a replication
+controller. Each container within a pod can be configured to run in a certain.
+Arguments can be passed, environment variables can be used among other things.
+
+* Pods
+
+	{
+		"apiVersion": "v1"
+		"kind": "Pod",
+		"metadata": {
+			"name": "my-pod",
+			"labels": {
+				"name": "my-pod"
+			}
+		}
+		"spec": {
+			"containers": [
+				{
+					"name": "my-container",
+					"image": "username/my-container:latest",
+		        	"ports": [
+						{
+		            		"name": "http",
+		            		"containerPort": 80
+						}
+					]
+				}
+			]
+		}
+	}
+
+* Deployments
+
+Deployments are upsed to bring up pods. Replicas can be defined in the config
+file to specify how many instances of the pod you'd like to be running at any
+given time. If a pod fails, be default it will be restarted again. If for some
+reason a new pod appears under the same selector, it will be killed.
+
+* Deployments
+
+	{
+		"apiVersion": "extensions/v1beta1",
+		"kind": "Deployment",
+		"metadata": {
+			"name": "nginx-deployment"
+		},
+		"spec": {
+			"replicas": 3,
+			"template": {
+				"metadata": {
+					"labels": {
+						"app": "nginx"
+					}
+				},
+				"spec": {
+					"containers": [
+						{
+							"name": "nginx",
+							"image": "nginx:1.7.9",
+							"ports": [
+								{
+									"containerPort": 80
+								}
+							]
+						}
+					]
+				}
+			}
+		}
+	}
+
+* Services
+
+	{
+		"apiVersion": "v1",
+		"kind": "Service",
+		"metadata": {
+			"name": "john-service",
+			"labels": {
+				"app": "john-service"
+			}
+		},
+		"spec": {
+			"selector": {
+				"app": "john"
+			},
+			"ports": [
+				{
+					"protocol": "TCP",
+					"targetPort": 4000,
+					"port": 4000
+				}
+			]
+		}
+	}
+
+* Demo
+
+* Scaling
+
+Your application can be scaled by creating new instances of your pods. This can be done
+using the kubectl scale command like so:
+
+	kubectl scale --replicas=10 -f deployments/my-deployment.json
+
+Nodes can be easily created or deleted from this kind of cluster using the following command:
+
+	gcloud container clusters resize CLUSTER_NAME --size SIZE
+
+* Rolling updates
+
+"To update a service without an outage, kubectl supports what is called ‘rolling update’, which updates one pod at a time, rather than taking down the entire service at the same time. See the rolling update design document and the example of rolling update for more information."
+
+.caption http://kubernetes.io/docs/user-guide/rolling-updates/
+
+	kubectl rolling-update NAME ([NEW_NAME] --image=IMAGE | -f FILE)
+
